@@ -4,12 +4,29 @@
 
 Contributions to CIPP are welcome by everyone. There's a couple of things to keep in mind;
 
+- These repositories are going through rapid changes. Every pull request should update version_latest.txt with versioning that follows https://semver.org
 - Speed and Security are two of our pillars, if it isn't fast, it isn't good, and if it isn't secure, it can't be accepted :) 
 - We try to use native APIs over Powershell Modules. Powershell modules tend to slow the entire processing. We currently only have Az.Keyvault and Az.Accounts loaded and prefer to keep it that way.
 - The interface is made entirely in Bootstrap and Jquery. For Datatables we use the JQuery Datatables plugin.
 - Avoid adding a deploy YML to your development repo. We'll remove those, but it's just an annoyance. If you want to both deploy and develop it's better to create two instances of the repo. 
 
 When contributing, or planning to contribute, please create an issue in the tracker [here](issues). If you are fixing a bug, file a complete bug report and assign it to yourself, if you are adding a feature, please add "Feature Request" to the title and assign it to yourself.
+
+# Feature requests
+
+Feature requests that request integration with anything but M365 will be closed. We're not integrating directly with third party products until version 2.0. Pull requests that have integration components will be discussed and evaluated on a case-by-case basis.
+# Pull Requests
+
+We do not accept PRs or commits against Master. Master is always the final version. For both CIPP and CIPP-API we have two branches. Dev and Master. Please make any PR against Dev, when Dev is promoted to final we'll PR that against master.
+
+# Naming Standards
+
+We follow a naming standard, as based on the name a user might get access to an API or not. Our current naming standard is as follows;
+ListBla - Everything that generates a list (users)
+EditBla - Anything that edits an exisiting object (edit user)
+AddBla - Anything that adds an object (add user)
+RemoveBla - Anything that deletes or removes an object (remove user)
+ExecBla - Anything that executes an action (send mfa request to user)
 ## Creating two instances
 
 - Make a clone of your forked repo
@@ -53,10 +70,10 @@ jobs:
 
 # Local development guide
 
-So you want to jump in on helping us make this awesome? You'll need a local development environment. I'm assuming you have *some* programming experience. You'll need a couple of tools to get start
+So you want to jump in on helping us make this awesome? You'll need a local development environment. I'm assuming you have *some* programming experience. You'll need a couple of tools to get started
 
 - Install [node.js](https://nodejs.org/en/)
-- Install .NET Core 2 and .NET Core 5
+- Install [.NET Core 2 SDK](https://dotnet.microsoft.com/download/dotnet/2.2) and [.NET Core 5 SDK](https://dotnet.microsoft.com/download/dotnet/5.0)
 - After installation execute the following commands:
 ```
 npm install -g @azure/static-web-apps-cli
@@ -68,14 +85,14 @@ Starting only the frontend:
 ```
 swa start "C:\PathToYourLocallyDownloadedFrontEn" --swa-config-location "C:\AnyInvalidPath"
 ```
-We use an invalid path on purpose, because our config in the CIPP folder on works for cloud engines and not the local emulator.
+We use an invalid path on purpose, because our config in the CIPP folder only works for cloud engines and not the local emulator.
 
 Starting only the APIs:
 ```
 func start --script-root "C:\FolderTo\CIPP-API"
  ```
 
- For starting both, we recommend two seperate instances. You can also have the SWA utility start the API but this brings in some added difficulties because you can't see the API logs directly in the console.
+ For starting both, we recommend two separate instances. You can also have the SWA utility start the API but this brings in some added difficulties because you can't see the API logs directly in the console.
 ```
 func start --script-root "C:\FolderTo\CIPP-API"
 swa start "C:\PathToYourLocallyDownloadedFrontEn" --swa-config-location "C:\AnyInvalidPath" --api-location http://localhost:7071/
@@ -90,6 +107,7 @@ Local.settings.json example:
   "IsEncrypted": false,
   "Values": {
     "FUNCTIONS_WORKER_RUNTIME": "powershell",
+    "FUNCTIONS_WORKER_RUNTIME_VERSION": "~7",
     "AzureWebJobsStorage": "DefaultEndpointsProtocol=AzureStorageConnectionStringhere",
     "applicationid": "appid",
     "applicationsecret": "applicationsecret",

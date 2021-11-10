@@ -2,7 +2,7 @@
 
 # Prerequisites
 
-For the installation and maintenance, we assume you have some knowledge of Github, and have setup the Secure Application Model prior to install. Haven't setup the Secure Application model yet? Check out [this](https://www.cyberdrain.com/connect-to-exchange-online-automated-when-mfa-is-enabled-using-the-secureapp-model/) script.
+For the installation and maintenance, we assume you have some knowledge of Github, and have setup the Secure Application Model prior to install. Haven't setup the Secure Application model yet? Check out [this](https://www.cyberdrain.com/connect-to-exchange-online-automated-when-mfa-is-enabled-using-the-secureapp-model/) script. For a step-by-step guide of how setting up the Secure Application Model, see [this](https://www.gavsto.com/secure-application-model-for-the-layman-and-step-by-step/).
 
 You'll also need the following permissions for your secure application model, to add permissions follow these instructions:
 
@@ -12,7 +12,7 @@ You'll also need the following permissions for your secure application model, to
 - Go to “API Permissions” and click Add a permission.
 - Choose “Microsoft Graph” and “Delegated permission” or "Application Permissions"
 - Add the permission you need.
-- Finally, click on “Grant Admin Consent for Company Name.
+- Finally, click on “Grant Admin Consent” for Company Name.
 
 ## Permissions
 
@@ -42,6 +42,7 @@ For full functionality, you'll need the following permissions for your Secure Ap
 | DeviceManagementServiceConfig.ReadWrite.All             | Delegated, Application | Read and write Microsoft Intune configuration                     |
 | Directory.AccessAsUser.All                              | Delegated              | Access directory as the signed in user                            |
 | Directory.Read.All                                      | Application            | Read directory data                                               |
+| Domain.Read.All                                         | Delegated              | Read domain data                            |
 | Group.Create                                            | Application            | Create groups                                                     |
 | Group.Read.All                                          | Application            | Read all groups                                                   |
 | Group.ReadWrite.All                                     | Delegated, Application | Read and write all groups                                         |
@@ -55,11 +56,12 @@ For full functionality, you'll need the following permissions for your Secure Ap
 | Policy.ReadWrite.AuthenticationMethod                   | Delegated, Application | Read and write authentication method policies                     |
 | Policy.ReadWrite.Authorization                          | Delegated              | Read and write your organization's authorization policy           |
 | Policy.ReadWrite.ConsentRequest                         | Delegated, Application | Read and write consent request policy                             |
+| Policy.ReadWrite.ConditionalAccess                      | Delegated, Application | Read and write conditional access policy
 | Policy.ReadWrite.DeviceConfiguration                    | Delegated              | Read and write your organization's device configuration policies  |
 | PrivilegedAccess.Read.AzureResources                    | Delegated              | Read privileged access to Azure resources                         |
 | PrivilegedAccess.ReadWrite.AzureADGroup                 | Application            | Read and write privileged access to Azure AD groups               |
 | PrivilegedAccess.ReadWrite.AzureResources               | Delegated              | Read and write privileged access to Azure resources               |
-| profile                                                 | Delegated              | View users' basic profile                                         |
+| OpenID permissions - profile                            | Delegated              | View users' basic profile                                         |
 | Reports.Read.All                                        | Delegated, Application | Read all usage reports                                            |
 | RoleManagement.ReadWrite.Directory                      | Delegated, Application | Read and write directory RBAC settings                            |
 | SecurityActions.ReadWrite.All                           | Delegated              | Read and update your organization's security actions              |
@@ -86,6 +88,7 @@ You'll need the following to get started;
 - A fork of [this](https://github.com/KelvinTegelaar/CIPP) repo
 - A fork of [this](https://github.com/KelvinTegelaar/CIPP-API) repo
 - An active Azure Subscription
+- A GitHub personal access token. You can find instructions on what you need and the minimum permissions to do this [here](https://docs.microsoft.com/en-us/azure/static-web-apps/publish-azure-resource-manager?tabs=azure-cli#create-a-github-personal-access-token). You only need to follow the "Create a GitHub personal access token" section
 
 # Automated setup
 
@@ -95,9 +98,59 @@ Click here to run the automated setup. This does most of the work for you. If yo
 
 The first 20 minutes the application can respond pretty slow, this is due to downloading some PowerShell modules from Microsoft. I can't make that any faster but just note before you get started. :)
 
+For updating the application, check out our updating document [here](/documentation/updating.md)
+
 ## It's not working, I'm having issues
 
-Before you create an issue, please restart both the Static Web App and Azure Function host, this solves 99,9% of all issues. Turn it off, turn it on again. ;)
+Before you create an issue, please restart the Azure Function host, this solves 99,9% of all issues. Turn it off, turn it on again. ;)
+
+Another option is that you've deployed your Secure Application Model incorrectly. You must use the script in the blog above to be 100% sure it has been created as expected. You can use the script below to check what's going on.
+
+```powershell
+$ApplicationId = 'xxxx-xxxx-xxx-xxxx-xxxx'
+$ApplicationSecret = 'TheSecretTheSecrey' | ConvertTo-SecureString -AsPlainText -Force
+$TenantID = 'YourTenantID'
+$RefreshToken = 'RefreshToken'
+$ExchangeRefreshToken = 'ExchangeRefreshToken'
+$upn = 'UPN-Used-To-Generate-Tokens'
+$credential = New-Object System.Management.Automation.PSCredential($ApplicationId, $ApplicationSecret)
+ 
+$aadGraphToken = New-PartnerAccessToken -ApplicationId $ApplicationId -Credential $credential -RefreshToken $refreshToken -Scopes 'https://graph.windows.net/.default' -ServicePrincipal -Tenant $tenantID
+$graphToken = New-PartnerAccessToken -ApplicationId $ApplicationId -Credential $credential -RefreshToken $refreshToken -Scopes 'https://graph.microsoft.com/.default' -ServicePrincipal -Tenant $tenantID
+ 
+Connect-MsolService -AdGraphAccessToken $aadGraphToken.AccessToken -MsGraphAccessToken $graphToken.AccessToken
+$customers = Get-MsolPartnerContract -All
+foreach ($customer in $customers) {
+    try {
+        $Baseuri = "https://graph.microsoft.com/beta"
+        $CustGraphToken = New-PartnerAccessToken -ApplicationId $ApplicationId -Credential $credential -RefreshToken $refreshToken -Scopes "https://graph.microsoft.com/.default" -ServicePrincipal -Tenant $customer.customerid
+        $Header = @{
+            Authorization = "Bearer $($CustGraphToken.AccessToken)"
+        }
+        $SecureDefaultsState = (Invoke-RestMethod -Uri "$baseuri/policies/identitySecurityDefaultsEnforcementPolicy" -Headers $Header -Method get -ContentType "application/json")
+
+    }
+    catch {
+        Write-Error "Could not connect to Graph API for $($customer.DefaultDomainName). $_"
+    }
+    try {
+
+        $token = New-PartnerAccessToken -ApplicationId 'a0c73c16-a7e3-4564-9a95-2bdf47383716'-RefreshToken $ExchangeRefreshToken -Scopes 'https://outlook.office365.com/.default' -Tenant $customer.TenantId
+        $tokenValue = ConvertTo-SecureString "Bearer $($token.AccessToken)" -AsPlainText -Force
+        $credential = New-Object System.Management.Automation.PSCredential($upn, $tokenValue)
+        $customerId = $customer.DefaultDomainName
+        $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://ps.outlook.com/powershell-liveid?DelegatedOrg=$($customerId)&BasicAuthToOAuthConversion=true" -Credential $credential -Authentication Basic -AllowRedirection
+        $session = Import-PSSession $session
+        #From here you can enter your own commands
+        $Exchange = get-mailbox
+        #end of commands
+        $PSSession = Remove-PSSession $session
+    }
+    catch {
+        Write-Error "Could not connect to Exchange for $($customer.DefaultDomainName). $_"
+    }
+}
+```
 
 ## I can't deploy in my region
 
@@ -109,7 +162,7 @@ This is most likely because of the Azure Static Web Apps component. This compone
 At the moment of deployment, the application will use a randomly generated name. To change this, go to your Resource Group in Azure, click on cipp-swa-xxxx and click on Custom Domains. You'll be able to add your own domain name here.
 # Adding users to allow the usage of the CIPP
 
-After deployment, go to your resource group in Azure and click on cipp-swa-xxxx. Click on Role Management and invite the users you want. Currently we only support the "reader" role, so make sure you enter that in the roles field.
+After deployment, go to your resource group in Azure and click on cipp-swa-xxxx. Click on Role Management and invite the users you want. Currently we support three roles, reader, editor, and admin. More info about the roles can be found [here](https://github.com/KelvinTegelaar/CIPP/blob/master/Documentation/Roles.md)
 
 # Manual instructions
 ## Create Azure Function host

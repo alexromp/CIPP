@@ -1,9 +1,9 @@
 var tenants = [];
 $(document).ready(function () {
-
     let searchParams = new URLSearchParams(window.location.search)
+    var tenantSelectID = '';
     if (searchParams.has('Tenantfilter')) {
-        var TenantID = searchParams.get('Tenantfilter')
+        tenantSelectID = searchParams.get('Tenantfilter')
     } else {
         $(":text").prop("disabled", true);
         $("#exampleDataList").prop("disabled", false);
@@ -26,8 +26,8 @@ $(document).ready(function () {
                 option.value = item.defaultDomainName;
                 option.text = item.displayName;
                 dataList.appendChild(option);
-                if (TenantID) {
-                    $("#exampleDataList").val(TenantID);
+                if (tenantSelectID !== '') {
+                    $("#exampleDataList").val(tenantSelectID);
                 } else {
                     $("#exampleDataList").val('');
                 }
@@ -37,8 +37,14 @@ $(document).ready(function () {
             $("#exampleDataList").val('Could not load tenants: Failed to connect to API:' + thrownError);
             $("#exampleDataList").prop("disabled", false);
         }
-
     });
+
+    //added datatable error handling here instead of editing all the files
+    $.fn.dataTable.ext.errMode = function(settings, helpPage, message) {
+        $("#AccountTable tr td").text("Error!");
+        $("#toasty .toast-body").text("An error occured. Please review the log.");
+        $("#toasty").toast("show");
+    }
 });
 
 function onInput() {
