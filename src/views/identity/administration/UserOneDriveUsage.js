@@ -13,7 +13,6 @@ export default function UserOneDriveUsage({ userUPN, tenantDomain, className = n
   } = useListOneDriveUsageQuery({ userUPN, tenantDomain })
 
   const noUsage = Object.keys(usage).length === 0 ?? false
-  console.log(usage)
   const content = [
     {
       heading: 'Site URL',
@@ -49,6 +48,7 @@ export default function UserOneDriveUsage({ userUPN, tenantDomain, className = n
       isFetching={isFetching}
       error={error}
       errorMessage={!noUsage ? 'Failed to fetch OneDrive details' : 'No OneDrive usage'}
+      tooltip={true}
     />
   )
 }
